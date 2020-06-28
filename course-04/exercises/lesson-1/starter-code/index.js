@@ -37,6 +37,24 @@ exports.handler = async (event) => {
 
   // TODO: Record time it took to get a response
   // TODO: Record if a response was successful or not
+
+  await cloudwatch.putMetricData({
+    MetricData: [ // A list of data points to send
+      {
+        MetricName: 'Success', // Name of a metric
+        Dimensions: [ // A list of key-value pairs that can be used to filter metrics from CloudWatch
+          {
+            Name: 'ServiceName',
+            Value: serviceName
+          }
+        ],
+        Unit: 'Count', // Unit of a metric
+        Value: value // Value of a metric to store
+      }
+    ],
+    Namespace: 'Udacity/Serveless' // An isolated group of metrics
+  }).promise()
+  
 }
 
 function timeInMs() {
