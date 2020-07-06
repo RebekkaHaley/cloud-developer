@@ -12,10 +12,6 @@ plugins:
 provider:
   name: aws
   runtime: nodejs10.x  # changed from 12.x
-  # apiGateway:
-  #   minimumCompressionSize: 1024 # Enable gzip compression for responses > 1 KB
-  # environment:
-  #   AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
   
   stage: ${opt:stage, 'dev'}
   region: ${opt:region, 'eu-west-2'}
@@ -26,15 +22,25 @@ provider:
   iamRoleStatements:
     - Effect: Allow
       Action:
-        - dynamodb:scan
+        - dynamodb:Scan
+        - dynamodb:PutItem
       Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.GROUPS_TABLE}
 
 functions:
+
   GetGroups:
     handler: src/lambda/http/getGroups.handler
     events:
       - http:
           method: get
+          path: groups
+          cors: true
+          
+  CreateGroup:
+    handler: src/lambda/http/createGroup.handler
+    events:
+      - http:
+          method: post
           path: groups
           cors: true
 
