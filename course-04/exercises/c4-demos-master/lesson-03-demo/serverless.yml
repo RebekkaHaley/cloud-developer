@@ -1,11 +1,6 @@
 service:
   name: serverless-udagram-app
 
-custom:
-  webpack:
-    webpackConfig: ./webpack.config.js
-    includeModules: true
-
 plugins:
   - serverless-webpack
   - serverless-reqvalidator-plugin
@@ -29,6 +24,9 @@ provider:
       Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.GROUPS_TABLE}
 
 custom:
+  webpack:
+    webpackConfig: ./webpack.config.js
+    includeModules: true
   documentation:
     api:
       info:
@@ -65,6 +63,7 @@ functions:
               'application/json': GroupRequest
 
 resources:
+
   Resources:
 
     RequestBodyValidator:
