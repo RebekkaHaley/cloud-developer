@@ -16,7 +16,7 @@ provider:
   environment:
     GROUPS_TABLE: Groups-${self:provider.stage}
     IMAGES_TABLE: Images-${self:provider.stage}
-    IMAGE_ID_INDEX: ImagesIdIndex
+    IMAGE_ID_INDEX: ImageIdIndex
   
   iamRoleStatements:
     - Effect: Allow
