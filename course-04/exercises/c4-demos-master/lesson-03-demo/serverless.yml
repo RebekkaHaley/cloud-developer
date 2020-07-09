@@ -8,8 +8,8 @@ plugins:
 
 provider:
   name: aws
-  runtime: nodejs10.x  # changed from 12.x
-  
+  runtime: nodejs10.x # changed from 12.x
+
   stage: ${opt:stage, 'dev'}
   region: ${opt:region, 'eu-west-2'}
 
@@ -17,7 +17,7 @@ provider:
     GROUPS_TABLE: Groups-${self:provider.stage}
     IMAGES_TABLE: Images-${self:provider.stage}
     IMAGE_ID_INDEX: ImageIdIndex
-  
+
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -50,7 +50,6 @@ custom:
         schema: ${file(models/create-group-request.json)}
 
 functions:
-
   # Groups model
 
   GetGroups:
@@ -60,7 +59,7 @@ functions:
           method: get
           path: groups
           cors: true
-          
+
   CreateGroup:
     handler: src/lambda/http/createGroup.handler
     events:
@@ -73,38 +72,36 @@ functions:
             summary: Create a new group
             description: Create a new group
             requestModels:
-              'application/json': GroupRequest
-  
+              "application/json": GroupRequest
+
   # Images model
 
   GetImages:
-      handler: src/lambda/http/getImages.handler
-      events:
-        - http:
-            method: get
-            path: groups/{groupId}/images
-            cors: true
+    handler: src/lambda/http/getImages.handler
+    events:
+      - http:
+          method: get
+          path: groups/{groupId}/images
+          cors: true
 
   GetImage:
-      handler: src/lambda/http/getImage.handler
-      events:
-        - http:
-            method: get
-            path: images/{ImageId}
-            cors: true
+    handler: src/lambda/http/getImage.handler
+    events:
+      - http:
+          method: get
+          path: images/{ImageId}
+          cors: true
 
 resources:
-
   Resources:
-
     RequestBodyValidator:
-        Type: AWS::ApiGateway::RequestValidator
-        Properties:
-          Name: 'request-body-validator'
-          RestApiId:
-            Ref: ApiGatewayRestApi
-          ValidateRequestBody: true
-          ValidateRequestParameters: false
+      Type: AWS::ApiGateway::RequestValidator
+      Properties:
+        Name: "request-body-validator"
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ValidateRequestBody: true
+        ValidateRequestParameters: false
 
     GroupsDynamoDBTable:
       Type: AWS::DynamoDB::Table
@@ -138,7 +135,7 @@ resources:
           - IndexName: ${self:provider.environment.IMAGE_ID_INDEX}
             KeySchema:
               - AttributeName: imageId
-                Keytype: HASH
+                KeyType: HASH
             Projection:
               ProjectionType: ALL
         BillingMode: PAY_PER_REQUEST
