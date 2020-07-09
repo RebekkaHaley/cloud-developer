@@ -62,7 +62,7 @@ custom:
         schema: ${file(models/create-image-request.json)}
 
 functions:
-  # Groups model
+  # Groups
 
   GetGroups:
     handler: src/lambda/http/getGroups.handler
@@ -86,7 +86,7 @@ functions:
             requestModels:
               "application/json": GroupRequest
 
-  # Images model
+  # Images
 
   GetImages:
     handler: src/lambda/http/getImages.handler
@@ -118,6 +118,11 @@ functions:
             requestModels:
               "application/json": ImageRequest
 
+  # Notifications
+
+  SendUploadNotifications:
+    handler: src/lambda/s3/sendNotifications.handler
+
 resources:
   Resources:
     RequestBodyValidator:
@@ -141,7 +146,6 @@ resources:
         BillingMode: PAY_PER_REQUEST
         TableName: ${self:provider.environment.GROUPS_TABLE}
 
-    # Need to add: 'title', 'url'
     ImagesDynamoDBTable:
       Type: AWS::DynamoDB::Table
       Properties:
@@ -171,6 +175,10 @@ resources:
       Type: AWS::S3::Bucket
       Properties:
         BucketName: ${self:provider.environment.IMAGES_S3_BUCKET}
+        NotificationConfiguration:
+          LambdaConfigurations:
+            - Event: s3:ObjectCreated:*
+              Function: !GetAtt SendUploadNotificationsLambdaFunction.Arn
         CorsConfiguration:
           CorsRules:
             - AllowedOrigins:
@@ -184,6 +192,15 @@ resources:
                 - DELETE
                 - HEAD
               MaxAge: 3000
+
+    SendUploadNotificationsPermissions:
+      Type: AWS::Lambda::Permission
+      Properties:
+        FunctionName: !Ref SendUploadNotificationsLambdaFunction
+        Principal: s3.amazonaws.com
+        Action: lambda:InvokeFunction
+        SourceAccount: !Ref AWS::AccountId
+        SourceArn: arn:aws:s3:::${self:provider.environment.IMAGES_S3_BUCKET}
 
     BucketPolicy:
       Type: AWS::S3::BucketPolicy
