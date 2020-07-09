@@ -92,6 +92,6 @@ function getUploadUrl(imageId: string) {
     return s3.getSignedUrl('putObject', {
         Bucket: bucketName,
         Key: imageId,
-        Expires: urlExpiration
+        Expires: Number(urlExpiration) // convert string to int
     })
 }
