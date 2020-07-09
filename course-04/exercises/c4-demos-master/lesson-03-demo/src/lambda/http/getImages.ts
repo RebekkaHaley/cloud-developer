@@ -55,7 +55,7 @@ async function getImagesPerGroup(groupId: string) {
         TableName: imagesTable,
         KeyConditionExpression: 'groupId = :groupId',
         ExpressionAttributeValues: {
-            'groupId': groupId
+            ':groupId': groupId
         },
         ScanIndexForward: false  // reverse item sort order (latest images first)
     }).promise()
