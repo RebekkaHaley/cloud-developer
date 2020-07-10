@@ -49,7 +49,7 @@ async function sendMessageToClient(connectionId, payload) {
 
     } catch (e) {
         console.log('Failed to send message', JSON.stringify(e))
-        if (e.statusCode == 410) {
+        if (e.statusCode === 410) {
             console.log('Stale connection')
 
             await docClient.delete({
@@ -58,7 +58,7 @@ async function sendMessageToClient(connectionId, payload) {
                     id: connectionId
                 }
             }).promise()
+
         }
     }
-
 }
