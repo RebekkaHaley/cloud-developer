@@ -29,7 +29,7 @@ export const handler: S3Handler = async (event: S3Event) => {
             imageId: key
         }
 
-        for (const connection of connection.Items) {
+        for (const connection of connections.Items) {
             const connectionId = connection.id
             await sendMessageToClient(connectionId, payload)
         }
