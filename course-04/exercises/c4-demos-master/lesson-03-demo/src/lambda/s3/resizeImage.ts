@@ -17,13 +17,13 @@ export const handler: SNSHandler = async (event: SNSEvent) => {
 
     for (const record of s3Event.Records) {
       // "record" is an instance of S3EventRecord
-      await processImage(record) // A function that resizes each image
+      await processImage(record)
     }
   }
 }
 
 async function processImage(record: S3EventRecord) {
-  const key = record.s3.object.key // Get a key of an uploaded image in S3
+  const key = record.s3.object.key
   console.log('Processing S3 item with key: ', key)
 
   // Download an image
