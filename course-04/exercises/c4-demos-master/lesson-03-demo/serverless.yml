@@ -343,3 +343,8 @@ resources:
                 AWS: "*"
               Action: "es:*"
               Resource: "*"
+
+    ThumbnailsBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:provider.environment.THUMBNAILS_S3_BUCKET}
