@@ -1,23 +1,20 @@
-import { CustomAuthorizerEvent, CustomAuthorizerResult, CustomAuthorizerHandler } from 'aws-lambda'
+import { CustomAuthorizerEvent, CustomAuthorizerResult } from 'aws-lambda'
 import 'source-map-support/register'
-import { verify } from 'jsonwebtoken'
-import { JwtToken } from '../../auth/JwtToken'
-
 import * as middy from 'middy'
 import { secretsManager } from 'middy/middlewares'
+
+import { verify } from 'jsonwebtoken'
+import { JwtToken } from '../../auth/JwtToken'
 
 const secretId = process.env.AUTH_0_SECRET_ID
 const secretField = process.env.AUTH_0_SECRET_FIELD
 
-export const handler = middy(async (
-    event: CustomAuthorizerEvent,
-    context
-    ): Promise<CustomAuthorizerResult> => {
+export const handler = middy(async (event: CustomAuthorizerEvent, context): Promise<CustomAuthorizerResult> => {
     try {
         const decodedToken = verifyToken(
-            event.authorizationToken
+            event.authorizationToken,
             context.AUTH0_SECRET[secretField]
-            )
+        )
         console.log('User was authorized', decodedToken)
 
         return {
@@ -52,7 +49,7 @@ export const handler = middy(async (
     }
 })
 
-function verifyToken(authHeader: string, secret): JwtToken {
+function verifyToken(authHeader: string, secret: string): JwtToken {
     if (!authHeader)
         throw new Error('No authentication header')
 
