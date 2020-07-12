@@ -1,10 +1,11 @@
 import { CustomAuthorizerEvent, CustomAuthorizerResult } from 'aws-lambda'
 import 'source-map-support/register'
-import * as middy from 'middy'
-import { secretsManager } from 'middy/middlewares'
 
 import { verify } from 'jsonwebtoken'
 import { JwtToken } from '../../auth/JwtToken'
+
+import * as middy from 'middy'
+import { secretsManager } from 'middy/middlewares'
 
 const secretId = process.env.AUTH_0_SECRET_ID
 const secretField = process.env.AUTH_0_SECRET_FIELD
