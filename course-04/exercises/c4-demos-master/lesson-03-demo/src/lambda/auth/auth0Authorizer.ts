@@ -1,20 +1,7 @@
 import { CustomAuthorizerEvent, CustomAuthorizerResult, CustomAuthorizerHandler } from 'aws-lambda'
 import 'source-map-support/register'
-// import * as middy from 'middy'
-// import { secretsManager } from 'middy/middlewares'
-
-// import { verify } from 'jsonwebtoken'
-// import { JwtToken } from '../../auth/JwtToken'
-
-// const secretId = process.env.AUTH_0_SECRET_ID
-// const secretField = process.env.AUTH_0_SECRET_FIELD
 
 export const handler: CustomAuthorizerHandler = async (event: CustomAuthorizerEvent): Promise<CustomAuthorizerResult> => {
-    //   try {
-    //     const decodedToken = verifyToken(
-    //       event.authorizationToken,
-    //       context.AUTH0_SECRET[secretField]
-    //     )
 
     try {
         verifyToken(event.authorizationToken)
@@ -50,7 +37,7 @@ export const handler: CustomAuthorizerHandler = async (event: CustomAuthorizerEv
             }
         }
     }
-})
+}
 
 function verifyToken(authHeader: string) {
     if (!authHeader)
@@ -60,23 +47,10 @@ function verifyToken(authHeader: string) {
         throw new Error('Invalid authentication header')
 
     const split = authHeader.split(' ')
-    const token = split[1] // second word
+    const token = split[1] // Get second word
 
     if (token !== '123')
         throw new Error('Invalid token')
-    
-    // A request has been authorized.
-    // return verify(token, secret) as JwtToken
-}
 
-// handler.use(
-//   secretsManager({
-//     cache: true,
-//     cacheExpiryInMillis: 60000,
-//     // Throw an error if can't read the secret
-//     throwOnFailedCall: true,
-//     secrets: {
-//       AUTH0_SECRET: secretId
-//     }
-//   })
-// )
+    // A request has been authorized.
+}
