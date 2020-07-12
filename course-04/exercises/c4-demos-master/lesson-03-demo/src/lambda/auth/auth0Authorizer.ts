@@ -5,7 +5,7 @@ export const handler: CustomAuthorizerHandler = async (event: CustomAuthorizerEv
 
     try {
         verifyToken(event.authorizationToken)
-        console.log('User was authorized', decodedToken)
+        console.log('User was authorized')
 
         return {
             principalId: 'user',
