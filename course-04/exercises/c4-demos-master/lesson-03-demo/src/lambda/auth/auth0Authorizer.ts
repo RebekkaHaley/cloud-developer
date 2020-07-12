@@ -64,7 +64,7 @@ async function verifyToken(authHeader: string): Promise<JwtToken> {
     const token = split[1] // Get second word
 
    const secretObject: any = await getSecret()
-   const secret secretObject[secretField]
+   const secret = secretObject[secretField]
 
     return verify(token, secret) as JwtToken
 }
