@@ -1,9 +1,12 @@
 import { SNSEvent, SNSHandler, S3EventRecord } from 'aws-lambda'
 import 'source-map-support/register'
 import * as AWS from 'aws-sdk'
-import Jimp from 'jimp'
+import * as AWSXRay from 'aws-xray-sdk'
+import Jimp from 'jimp/es'
 
-const s3 = new AWS.S3()
+const XAWS = AWSXRay.captureAWS(AWS)
+
+const s3 = new XAWS.S3()
 
 const imagesBucketName = process.env.IMAGES_S3_BUCKET
 const thumbnailBucketName = process.env.THUMBNAILS_S3_BUCKET
@@ -47,7 +50,7 @@ async function processImage(record: S3EventRecord) {
 
   // Convert an image to a buffer that we can write to a different bucket
   const convertedBuffer = await image.getBufferAsync(Jimp.AUTO)
-
+  
   // Write an image to a different bucket
   console.log(`Writing image back to S3 bucket: ${thumbnailBucketName}`)
   await s3

@@ -5,6 +5,15 @@ plugins:
   - serverless-webpack
   - serverless-reqvalidator-plugin
   - serverless-aws-documentation
+  - serverless-plugin-canary-deployments
+  - serverless-iam-roles-per-function
+  - serverless-dynamodb-local
+  - serverless-offline
+  - serverless-plugin-tracing
+
+# Uncomment to enable individual packaging
+# package:
+#   individually: true
 
 provider:
   name: aws
@@ -13,6 +22,10 @@ provider:
   stage: ${opt:stage, 'dev'}
   region: ${opt:region, 'eu-west-2'}
   randomnum: "457653846587"
+
+  tracing:
+    lambda: true
+    apiGateway: true
 
   environment:
     GROUPS_TABLE: Groups-${self:provider.stage}
@@ -26,6 +39,11 @@ provider:
     AUTH_0_SECRET_FIELD: auth0Secret
 
   iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - codedeploy:*
+      Resource:
+        - "*"
     - Effect: Allow
       Action:
         - dynamodb:Scan
@@ -70,12 +88,22 @@ custom:
   webpack:
     webpackConfig: ./webpack.config.js
     includeModules: true
+
+  serverless-offline:
+    port: 3003
+
+  dynamodb:
+    start:
+      port: 8000
+      inMemory: true
+      migrate: true
+
   documentation:
     api:
       info:
         version: v1.0.0
         title: Udagram API
-        description: Serverless application for image sharing
+        description: Serverless application for images sharing
     models:
       - name: GroupRequest
         contentType: application/json
@@ -86,6 +114,9 @@ custom:
 
 functions:
   # Auth
+
+  RS256Auth:
+    handler: src/lambda/auth/rs256Auth0Authorizer.handler
 
   Auth:
     handler: src/lambda/auth/auth0Authorizer.handler
@@ -107,13 +138,16 @@ functions:
           method: post
           path: groups
           cors: true
-          authorizer: Auth
+          authorizer: RS256Auth
           reqValidatorName: RequestBodyValidator
           documentation:
             summary: Create a new group
             description: Create a new group
             requestModels:
               "application/json": GroupRequest
+    deploymentSettings:
+      type: Linear10PercentEvery1Minute
+      alias: Live
 
   # Images
 
@@ -124,6 +158,15 @@ functions:
           method: get
           path: groups/{groupId}/images
           cors: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.IMAGES_TABLE}
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.GROUPS_TABLE}
 
   GetImage:
     handler: src/lambda/http/getImage.handler
@@ -138,9 +181,9 @@ functions:
     events:
       - http:
           method: post
+          authorizer: RS256Auth
           path: groups/{groupId}/images
           cors: true
-          authorizer: Auth
           reqValidatorName: RequestBodyValidator
           documentation:
             summary: Create a new image
@@ -148,8 +191,14 @@ functions:
             requestModels:
               "application/json": ImageRequest
 
-  ResizeImage:
-    handler: src/lambda/s3/resizeImage.handler
+  # Notifications
+
+  SendUploadNotifications:
+    environment:
+      STAGE: ${self:provider.stage}
+      API_ID:
+        Ref: WebsocketsApi
+    handler: src/lambda/s3/sendNotifications.handler
     events:
       - sns:
           arn:
@@ -161,14 +210,8 @@ functions:
                 - ${self:custom.topicName}
           topicName: ${self:custom.topicName}
 
-  # Notifications
-
-  SendUploadNotifications:
-    environment:
-      STAGE: ${self:provider.stage}
-      API_ID:
-        Ref: WebsocketsApi
-    handler: src/lambda/s3/sendNotifications.handler
+  ResizeImage:
+    handler: src/lambda/s3/resizeImage.handler
     events:
       - sns:
           arn:
@@ -195,15 +238,14 @@ functions:
           route: $disconnect
 
   # ElasticSearch
-
-  SyncWithElasticsearch:
-    environment:
-      ES_ENDPOINT: !GetAtt ImagesSearch.DomainEndpoint
-    handler: src/lambda/dynamoDb/elasticSearchSync.handler
-    events:
-      - stream:
-          type: dynamodb
-          arn: !GetAtt ImagesDynamoDBTable.StreamArn
+  # SyncWithElasticsearch:
+  #   environment:
+  #     ES_ENDPOINT: !GetAtt ImagesSearch.DomainEndpoint
+  #   handler: src/lambda/dynamoDb/elasticSearchSync.handler
+  #   events:
+  #     - stream:
+  #         type: dynamodb
+  #         arn: !GetAtt ImagesDynamoDBTable.StreamArn
 
 resources:
   Resources:
@@ -218,15 +260,6 @@ resources:
         RestApiId:
           Ref: ApiGatewayRestApi
 
-    RequestBodyValidator:
-      Type: AWS::ApiGateway::RequestValidator
-      Properties:
-        Name: "request-body-validator"
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ValidateRequestBody: true
-        ValidateRequestParameters: false
-
     GroupsDynamoDBTable:
       Type: AWS::DynamoDB::Table
       Properties:
@@ -240,7 +273,7 @@ resources:
         TableName: ${self:provider.environment.GROUPS_TABLE}
 
     ImagesDynamoDBTable:
-      Type: AWS::DynamoDB::Table
+      Type: "AWS::DynamoDB::Table"
       Properties:
         AttributeDefinitions:
           - AttributeName: groupId
@@ -254,6 +287,10 @@ resources:
             KeyType: HASH
           - AttributeName: timestamp
             KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+        StreamSpecification:
+          StreamViewType: NEW_IMAGE
+        TableName: ${self:provider.environment.IMAGES_TABLE}
         GlobalSecondaryIndexes:
           - IndexName: ${self:provider.environment.IMAGE_ID_INDEX}
             KeySchema:
@@ -261,10 +298,6 @@ resources:
                 KeyType: HASH
             Projection:
               ProjectionType: ALL
-        BillingMode: PAY_PER_REQUEST
-        TableName: ${self:provider.environment.IMAGES_TABLE}
-        StreamSpecification:
-          StreamViewType: NEW_IMAGE
 
     WebSocketConnectionsDynamoDBTable:
       Type: AWS::DynamoDB::Table
@@ -277,6 +310,15 @@ resources:
             KeyType: HASH
         BillingMode: PAY_PER_REQUEST
         TableName: ${self:provider.environment.CONNECTIONS_TABLE}
+
+    RequestBodyValidator:
+      Type: AWS::ApiGateway::RequestValidator
+      Properties:
+        Name: "request-body-validator"
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ValidateRequestBody: true
+        ValidateRequestParameters: false
 
     AttachmentsBucket:
       Type: AWS::S3::Bucket
@@ -300,15 +342,6 @@ resources:
                 - DELETE
                 - HEAD
               MaxAge: 3000
-
-    SendUploadNotificationsPermissions:
-      Type: AWS::Lambda::Permission
-      Properties:
-        FunctionName: !Ref SendUploadNotificationsLambdaFunction
-        Principal: s3.amazonaws.com
-        Action: lambda:InvokeFunction
-        SourceAccount: !Ref AWS::AccountId
-        SourceArn: arn:aws:s3:::${self:provider.environment.IMAGES_S3_BUCKET}
 
     BucketPolicy:
       Type: AWS::S3::BucketPolicy
@@ -341,41 +374,42 @@ resources:
         Topics:
           - !Ref ImagesTopic
 
+    ThumbnailsBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:provider.environment.THUMBNAILS_S3_BUCKET}
+
     ImagesTopic:
       Type: AWS::SNS::Topic
       Properties:
         DisplayName: Image bucket topic
         TopicName: ${self:custom.topicName}
 
-    ImagesSearch:
-      Type: AWS::Elasticsearch::Domain
-      Properties:
-        ElasticsearchVersion: "6.3"
-        DomainName: images-search-${self:provider.stage}
-        ElasticsearchClusterConfig:
-          DedicatedMasterEnabled: false
-          InstanceCount: "1"
-          ZoneAwarenessEnabled: false
-          InstanceType: t2.small.elasticsearch
-        EBSOptions:
-          EBSEnabled: true
-          Iops: 0
-          VolumeSize: 10
-          VolumeType: "gp2"
+    # ImagesSearch:
+    #   Type: AWS::Elasticsearch::Domain
+    #   Properties:
+    #     ElasticsearchVersion: '6.3'
+    #     DomainName: images-search-${self:provider.stage}
+    #     ElasticsearchClusterConfig:
+    #       DedicatedMasterEnabled: false
+    #       InstanceCount: '1'
+    #       ZoneAwarenessEnabled: false
+    #       InstanceType: t2.small.elasticsearch
+    #     EBSOptions:
+    #       EBSEnabled: true
+    #       Iops: 0
+    #       VolumeSize: 10
+    #       VolumeType: 'gp2'
 
-        AccessPolicies:
-          Version: "2012-10-17"
-          Statement:
-            - Effect: Allow
-              Principal:
-                AWS: "*"
-              Action: "es:*"
-              Resource: "*"
-
-    ThumbnailsBucket:
-      Type: AWS::S3::Bucket
-      Properties:
-        BucketName: ${self:provider.environment.THUMBNAILS_S3_BUCKET}
+    #     AccessPolicies:
+    #       Version: '2012-10-17'
+    #       Statement:
+    #         -
+    #           Effect: Allow
+    #           Principal:
+    #             AWS: '*'
+    #           Action: 'es:*'
+    #           Resource: '*'
 
     KMSKey:
       Type: AWS::KMS::Key
